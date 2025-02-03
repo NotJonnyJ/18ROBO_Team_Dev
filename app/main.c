@@ -2,6 +2,7 @@
 
 int main(void) {
 
+//test
     volatile uint32_t i;
 
     // Stop watchdog timer

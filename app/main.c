@@ -1,3 +1,27 @@
+/*
+ * RoboSub Leak Detector Firmware
+ * 
+ * File: main.c
+ * Author: [Your Team's Names]
+ * Date: 2025-02-05
+ * Description: This firmware runs on the MSP430FR2355 microcontroller to detect water leaks in the RoboSub.
+ * It reads from multiple water sensors, processes the data, and triggers alerts using LEDs and I2C communication.
+ * The system ensures early detection of water intrusion and initiates emergency shutdown procedures when necessary.
+ * 
+ * Features:
+ * - Reads water sensor inputs (continuity and optical prism sensors)
+ * - Processes ADC values for water level detection
+ * - Controls LED indicators to signal hazard and critical states
+ * - Communicates detection status to the Jetson AGX Orin over I2C
+ * - Implements emergency shutdown when critical water levels are reached
+ *
+ * Future Improvements:
+ * - Optimize power consumption for extended operation
+ * - Implement more precise water level differentiation
+ * - Improve I2C communication reliability and add error handling
+ */
+
+ 
 #include "intrinsics.h"
 #include "msp430fr2355.h"
 #include <driverlib.h>

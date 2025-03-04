@@ -1,0 +1,7 @@
+[
+   {
+      "directory" : "C:/Users/nickl/Desktop/Cap 2/code_repo/18ROBO_Team_Dev/app/Debug",
+      "command"   : "clang++ -I\"C:/ti/ccs2002/ccs/ccs_base/msp430/include\" -I\"C:/Users/nickl/Desktop/Cap 2/code_repo/18ROBO_Team_Dev/app\" -I\"C:/Users/nickl/Desktop/Cap 2/code_repo/18ROBO_Team_Dev/app/driverlib/MSP430FR2xx_4xx\" -I\"C:/ti/ccs2002/ccs/tools/compiler/ti-cgt-msp430_21.6.1.LTS/include\" -D__MSP430FR2355__ -D_FRWP_ENABLE -D_INFO_FRWP_ENABLE",
+      "file"      : "C:/Users/nickl/Desktop/Cap 2/code_repo/18ROBO_Team_Dev/app/main.c"
+   }
+]

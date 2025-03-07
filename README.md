@@ -15,16 +15,22 @@ During previous RoboNation RoboSub competitions, the RoboCats' autonomous submar
 
 ## System Design
 The system is built with the following components:
-- **MSP430FR2355 Microcontroller** for data processing and communication.
-- **Continuity Water Sensors** to detect initial water presence.
-- **Optical Prism Water Sensors** for precise water level detection.
-- **High-Power LED Indicator** (XMLDCL-00-R250-00C5AAA02) for real-time visual status.
-- **I2C Communication** to interface with the RoboSub's onboard Linux-based Jetson PC.
+- **MSP430FR2355 Microcontroller** for sensor data processing and communication.
+- **Continuity Water Sensors** used to detect between 0-360 mL of water intrusion into the sub.
+- **Optical Prism Water Sensors** for detection beteen 360 mL of water intrusion into the sub; Induces shutdown procedure.
+- **High-Power LED Indicator**- communicates real-time status to users outside of pool visually.
+- **I2C Communication** used to interface with the RoboSub's onboard Linux-based Jetson Orin PC.
 
 ## Repository Structure
 ```
-├── app/
+├── app/                      # Main code that will run on the sub and submitted in the final project.
 │   ├── main.c                # Main firmware source code for the MSP430 microcontroller
+|   
+|   docs/                     # Documents and resources used in development
+|   |├──msp430datasheet.pdf   # Main resource in code development
+|
+|   software/                 # Python code run on Orin PC for I2C communication
+|   |├──
 ```
 
 ## Installation & Setup

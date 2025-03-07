@@ -17,7 +17,7 @@ During previous RoboNation RoboSub competitions, the RoboCats' autonomous submar
 The system is built with the following components:
 - **MSP430FR2355 Microcontroller** for sensor data processing and communication.
 - **Continuity Water Sensors** used to detect between 0-360 mL of water intrusion into the sub.
-- **Optical Prism Water Sensors** for detection beteen 360 mL of water intrusion into the sub; Induces shutdown procedure.
+- **Optical Prism Water Sensors** for detection beteen 360 mL and 500 mL of water intrusion into the sub; Induces shutdown procedure.
 - **High-Power LED Indicator**- communicates real-time status to users outside of pool visually.
 - **I2C Communication** used to interface with the RoboSub's onboard Linux-based Jetson Orin PC.
 

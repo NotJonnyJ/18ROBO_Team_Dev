@@ -41,6 +41,9 @@ int CRITICAL_STATE = 0;
 int CRITICAL_FLAG = 0;
 int HAZARD_FLAG = 0;
 
+int HAZARD_COUNT = 0;
+int CRITICAL_COUNT = 0;
+
 unsigned int ADC_Values[4];  // Array to store values for channels A4-A7
 unsigned int currentChannel = 4; // Start from channel A4
 
@@ -60,11 +63,7 @@ char dataIn;
 void startConversion();
 
 
-void delay_ms(unsigned int ms) {
-    while (ms--) {
-        __delay_cycles(10000); // Assuming 1MHz clock, 1ms delay
-    }
-}
+
 
 int main(void) {
 //test
@@ -124,6 +123,24 @@ int main(void) {
     TB0CCTL0 &= ~CCIFG;
     TB0CCTL0 |= CCIE;
 
+    // -- TIMER 2 SETUP (CRITICAL) --------------------------------------------------------
+    TB1CTL |= TBCLR;
+    TB1CTL |= TBSSEL__ACLK;
+    TB1CTL |= MC__UP;
+    TB1CCR0 = 32768;
+
+    TB1CCTL0 &= ~CCIFG;
+    TB1CCTL0 |= CCIE;
+
+    // -- TIMER 3 SETUP (CRITICAL) --------------------------------------------------------
+    TB2CTL |= TBCLR;
+    TB2CTL |= TBSSEL__ACLK;
+    TB2CTL |= MC__UP;
+    TB2CCR0 = 32768;
+
+    TB2CCTL0 &= ~CCIFG;
+    TB2CCTL0 |= CCIE;
+
     // Enable I2C Send and recieve interrupts
     UCB0IE |= UCTXIE;
     UCB0IE |= UCRXIE;
@@ -137,10 +154,17 @@ int main(void) {
 
     // --MAIN LOOP -------------------------------------------------------------
     while(1){
-       
+        if(DRY_STATE == 1){
+            TB2CCR0 = 32768;
+        } else if(HAZARD_STATE == 1){
+            TB2CCR0 = 16000;
+        }else if(CRITICAL_STATE == 1){
+            TB2CCR0 = 8000;
+        }
 
+    
        UCB0IE |= UCRXIE0; //Enable i2C receive interrupt
-       
+
        // Grab Bit 0 of port 6 to check sensor 1
        HS1 = P6IN;
        HS1 &= BIT0;
@@ -159,20 +183,11 @@ int main(void) {
        // Grab Bit 5 of port 6 to check sensor 6
        HS6 = P6IN;
        HS6 &= BIT5;
+       __disable_interrupt();
+       startConversion();
+       __delay_cycles(100);
+       __enable_interrupt();
 
-    // Compare sensors with expected input values from comparator circuit
-       if((HS1 == 0) | (HS2 == 0) | (HS3 == 0) | (HS4 == 0) | (HS5 == 0) | (HS6 == 0)){
-            //P1OUT |= BIT1;
-            P2OUT |= LED2;   // Turn ON LED2
-            delay_ms(DELAY);
-       } else if ((HS1 == 1) | (HS2 == 2) | (HS3 == 4) | (HS4 == 8) | (HS5 == 16) | (HS6 == 32)) {
-            //P1OUT &= ~BIT1;
-            P2OUT &= ~LED2;  // Turn OFF LED2
-            delay_ms(DELAY);
-       } else {
-            P2OUT &= ~LED2;  // Turn OFF LED2
-            delay_ms(DELAY);
-       }        
     }
 }
 
@@ -220,20 +235,22 @@ void switchChannel() {
 //--------------------------------------------------------------
 #pragma vector=ADC_VECTOR
 __interrupt void ADC_ISR(void){
+    __disable_interrupt();
     ADC_Values[currentChannel - 4] = ADCMEM0; // Store result in array
 
     // Example: Turn LED on if any channel reads between 11 and 3000
     if (ADC_Values[currentChannel - 4] < 3000 && ADC_Values[currentChannel - 4] > 11) {
         //P1OUT |= BIT0;
         P2OUT |= LED1;  // Turn ON LED1
-        delay_ms(DELAY);
+         __delay_cycles(400);
     } else {
         //P1OUT &= ~BIT0;
         P2OUT &= ~LED1;  // Turn OFF LED1
-        delay_ms(DELAY); // Keep it OFF for the same duration
+         __delay_cycles(400); // Keep it OFF for the same duration
     }
 
     switchChannel();  // Move to the next channel for the next conversion
+    __enable_interrupt();
 
 }
 
@@ -244,18 +261,68 @@ __interrupt void ADC_ISR(void){
 __interrupt void  ISR_TB0_CCR0(void){
     CRITICAL_FLAG++;
     // Start ADC converstion
-    startConversion();
-    if (CRITICAL_FLAG == 2) {
+    if (CRITICAL_FLAG >= 1) {
         CRITICAL_STATE = 1;
         DRY_STATE = 0;
     }
     TB0CCTL0 &= ~CCIFG;
 }
+
+//--------------------------------------------------------------
+// TIMER 2 ISR
+//--------------------------------------------------------------
+#pragma vector = TIMER1_B0_VECTOR
+__interrupt void  ISR_TB1_CCR0(void){
+
+        // Compare sensors with expected input values from comparator circuit
+       if((HS1 == 0) | (HS2 == 0) | (HS3 == 0) | (HS4 == 0) | (HS5 == 0) | (HS6 == 0)){
+            HAZARD_COUNT++;
+             __delay_cycles(400);
+             if (HAZARD_COUNT > 1){
+                HAZARD_STATE = 1;
+                DRY_STATE = 0;
+             }
+       } else if ((HS1 == 1) | (HS2 == 2) | (HS3 == 4) | (HS4 == 8) | (HS5 == 16) | (HS6 == 32)) {
+            //P1OUT &= ~BIT1;
+            HAZARD_COUNT = 0;
+            HAZARD_STATE = 0;
+            DRY_STATE = 1;
+             __delay_cycles(400);
+       } else {
+            HAZARD_STATE = 0;
+             __delay_cycles(400);
+       }        
+    
+    TB1CCTL0 &= ~CCIFG;
+}
+
+//--------------------------------------------------------------
+// TIMER 3 ISR
+//--------------------------------------------------------------
+#pragma vector = TIMER2_B0_VECTOR
+__interrupt void  ISR_TB2_CCR0(void){
+    if(DRY_STATE == 1){
+        P2OUT |= LED1;  // Turn ON LED1
+        __delay_cycles(32000);
+        P2OUT &= ~LED1;  // Turn OFF LED1
+    }else if (HAZARD_STATE == 1){
+        P2OUT |= LED2;   // Turn ON LED2
+        __delay_cycles(32000);
+        P2OUT &= ~LED2;  // Turn OFF LED2
+    }else if (CRITICAL_STATE == 1){
+        P4OUT |= LED3; 
+        __delay_cycles(32000);
+        P4OUT &= ~LED3;
+    }
+    TB2CCTL0 &= ~CCIFG;
+}
+
 //--------------------------------------------------------------
 // I2C ISR
 //--------------------------------------------------------------
 #pragma vector = EUSCI_B0_VECTOR
 __interrupt void EUSCI_B0_I2C_ISR(void) {
+    __disable_interrupt();
     P1OUT ^= 0x01;
 
     switch(UCB0IV){
@@ -266,5 +333,6 @@ __interrupt void EUSCI_B0_I2C_ISR(void) {
         UCB0TXBUF = 0x11;
         break;
     }
+    __enable_interrupt();
 }
 

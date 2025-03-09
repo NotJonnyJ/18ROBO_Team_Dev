@@ -262,6 +262,7 @@ __interrupt void  ISR_TB2_CCR0(void){
 
 #pragma vector = TIMER2_B1_VECTOR
 __interrupt void  ISR_TB2_CCR1(void){
+    int k = 7;
     status_led_CCR1();
 }
 

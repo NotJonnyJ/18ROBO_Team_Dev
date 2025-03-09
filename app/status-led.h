@@ -43,8 +43,8 @@ inline void init_status_LED(void)
     TB2CCTL0 |= CCIE;
 
     TB2CCR1 = DRY_CCR1;
-    TB2CCTL0 &= ~CCIFG;
-    TB2CCTL0 |= CCIE;
+    TB2CCTL1 &= ~CCIFG;
+    TB2CCTL1 |= CCIE;
 
     return;
 }

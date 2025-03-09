@@ -25,11 +25,11 @@
 #include "msp430fr2355.h"
 #include <driverlib.h>
 #include <msp430.h>
+#include "status-led.h"
+
 
 //Pin descriptions for the off board LED
-#define LED1    BIT4  // P2.4
-#define LED2    BIT5  // P2.5
-#define LED3    BIT7  // P4.7
+
 #define DELAY   250   // 250ms delay for 50% duty cycle
 
 // To indicate the state of the system
@@ -71,15 +71,6 @@ int main(void) {
 
     // Stop watchdog timer
     WDTCTL = WDTPW | WDTHOLD;
-
-    // -- ON BOARD LED Pins ------------------------------------------------
-    P1DIR |= BIT0;
-    P1DIR |= BIT1;
-    // -- OFF BOARD LED PINS  -------------------------------------------------------------------
-    P2DIR |= LED1 | LED2;   // Configure P2.4 and P2.5 as output
-    P2OUT &= ~(LED1 | LED2); // Ensure LEDs are OFF initially
-    P4DIR |= LED3;  // Configure P4.7 as output
-    P4OUT &= ~LED3; // Ensure LED3 is OFF initially
 
     // -- I2C PINS-----------------------------------------------------------------------
     P1SEL1 &= ~BIT2;
@@ -132,15 +123,6 @@ int main(void) {
     TB1CCTL0 &= ~CCIFG;
     TB1CCTL0 |= CCIE;
 
-    // -- TIMER 3 SETUP (CRITICAL) --------------------------------------------------------
-    TB2CTL |= TBCLR;
-    TB2CTL |= TBSSEL__ACLK;
-    TB2CTL |= MC__UP;
-    TB2CCR0 = 32768;
-
-    TB2CCTL0 &= ~CCIFG;
-    TB2CCTL0 |= CCIE;
-
     // Enable I2C Send and recieve interrupts
     UCB0IE |= UCTXIE;
     UCB0IE |= UCRXIE;
@@ -152,6 +134,7 @@ int main(void) {
     // Enable timers, and ADC interrupts
     __enable_interrupt();
      _BIS_SR(GIE); //Enable global interrupts.
+     init_status_LED();
 
     // --MAIN LOOP -------------------------------------------------------------
     while(1){
@@ -159,6 +142,7 @@ int main(void) {
        startConversion();   // Check Critical Sensors
        __delay_cycles(100);
        __enable_interrupt();
+       update_status_led(CRITICAL_STATE, HAZARD_STATE, DRY_STATE);
 
     }
 }
@@ -300,21 +284,14 @@ __interrupt void  ISR_TB1_CCR0(void){
 //--------------------------------------------------------------
 #pragma vector = TIMER2_B0_VECTOR
 __interrupt void  ISR_TB2_CCR0(void){
-    if(DRY_STATE == 1){
-        P2OUT |= LED1;  // Turn ON LED1
-        __delay_cycles(32000);
-        P2OUT &= ~LED1;  // Turn OFF LED1
-    }else if (HAZARD_STATE == 1){
-        P2OUT |= LED2;   // Turn ON LED2
-        __delay_cycles(32000);
-        P2OUT &= ~LED2;  // Turn OFF LED2
-    }else if (CRITICAL_STATE == 1){
-        P4OUT |= LED3; 
-        __delay_cycles(32000);
-        P4OUT &= ~LED3;
-    }
-    TB2CCTL0 &= ~CCIFG;
+    status_led_CCR0(HAZARD_STATE, DRY_STATE);
 }
+
+#pragma vector = TIMER2_B1_VECTOR
+__interrupt void  ISR_TB2_CCR1(void){
+    status_led_CCR1();
+}
+
 
 //--------------------------------------------------------------
 // I2C ISR

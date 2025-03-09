@@ -131,10 +131,8 @@ int main(void) {
     while(1){
        __disable_interrupt();
        startConversion();   // Check Critical Sensors
-       __delay_cycles(100);
-       __enable_interrupt();
        update_status_led(CRITICAL_STATE, HAZARD_STATE, DRY_STATE);
-
+       __enable_interrupt();
     }
 }
 
@@ -281,7 +279,14 @@ __interrupt void EUSCI_B0_I2C_ISR(void) {
         dataIn = UCB0RXBUF;
         break;
     case 0x18:
-        UCB0TXBUF = 0x11;
+        if(CRITICAL_STATE){
+            UCB0TXBUF = 0x10;
+        } else if(HAZARD_STATE){
+            UCB0TXBUF = 0x01;
+        }else if(DRY_STATE){
+            UCB0TXBUF = 0x00;
+        }
+        
         break;
     }
     __enable_interrupt();

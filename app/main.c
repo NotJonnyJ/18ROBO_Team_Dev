@@ -105,15 +105,6 @@ int main(void) {
     // Take out of Low Power Mode ---------------------------------------------
     PM5CTL0 &= ~LOCKLPM5;
 
-    // -- TIMER 1 SETUP (CRITICAL) --------------------------------------------------------
-    TB0CTL |= TBCLR;
-    TB0CTL |= TBSSEL__ACLK;
-    TB0CTL |= MC__UP;
-    TB0CCR0 = 32768;
-
-    TB0CCTL0 &= ~CCIFG;
-    TB0CCTL0 |= CCIE;
-
     // -- TIMER 2 SETUP (CRITICAL) --------------------------------------------------------
     TB1CTL |= TBCLR;
     TB1CTL |= TBSSEL__ACLK;
@@ -208,28 +199,12 @@ __interrupt void ADC_ISR(void){
         CRITICAL_STATE = 1;
         HAZARD_STATE = 0;
         DRY_STATE = 0;
-    } else {
-        CRITICAL_STATE = 0;
     }
     switchChannel();  // Move to the next channel for the next conversion
     __enable_interrupt();
 
 }
 
-//--------------------------------------------------------------
-// TIMER 1 (CRITICAL FLAG CHECK) ISR
-// - Makes sure the critical state has been detected for greaer than one second before asserting.
-//--------------------------------------------------------------
-#pragma vector = TIMER0_B0_VECTOR
-__interrupt void  ISR_TB0_CCR0(void){
-    CRITICAL_FLAG++;
-    // Start ADC converstion
-    if (CRITICAL_FLAG >= 1) {
-        CRITICAL_STATE = 1;
-        DRY_STATE = 0;
-    }
-    TB0CCTL0 &= ~CCIFG;
-}
 
 //--------------------------------------------------------------
 // TIMER 2 (HAZARD CHECK) ISR

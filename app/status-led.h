@@ -16,10 +16,10 @@ This header file contains all the needed functionality for the offboard status L
 #define GREEN_LED    BIT4  // P2.4 green
 #define WHITE_LED    BIT5  // P2.5 white
 #define RED_LED      BIT7  // P4.7 red
-#define DRY_CCR0     327680 // dry state ccr0 point
+#define DRY_CCR0     32768 // dry state ccr0 point
 #define DRY_CCR1     16384 // dry state ccr1 point
-#define HAZARD_CCR0  163840 // hazard state ccr0 point
-#define HAZARD_CCR1  16384  // hazard state ccr1 point
+#define HAZARD_CCR0  16384 // hazard state ccr0 point
+#define HAZARD_CCR1  16380  // hazard state ccr1 point
 
 
 inline void init_status_LED(void)

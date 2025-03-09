@@ -61,8 +61,8 @@ unsigned int i;
 char dataIn;
 
 void startConversion();
-
-
+void LED_Handler();
+void startConversion();
 
 
 int main(void) {
@@ -144,6 +144,7 @@ int main(void) {
     // Enable I2C Send and recieve interrupts
     UCB0IE |= UCTXIE;
     UCB0IE |= UCRXIE;
+    UCB0IE |= UCRXIE0; //Enable i2C receive interrupt
 
     // ADC Setup Initialization
     configureADC();
@@ -154,46 +155,27 @@ int main(void) {
 
     // --MAIN LOOP -------------------------------------------------------------
     while(1){
-        if(DRY_STATE == 1){
-            TB2CCR0 = 32768;
-        } else if(HAZARD_STATE == 1){
-            TB2CCR0 = 16000;
-        }else if(CRITICAL_STATE == 1){
-            TB2CCR0 = 8000;
-        }
-
-    
-       UCB0IE |= UCRXIE0; //Enable i2C receive interrupt
-
-       // Grab Bit 0 of port 6 to check sensor 1
-       HS1 = P6IN;
-       HS1 &= BIT0;
-       // Grab Bit 1 of port 6 to check sensor 2
-       HS2 = P6IN;
-       HS2 &= BIT1;
-       // Grab Bit 2 of port 6 to check sensor 3
-       HS3 = P6IN;
-       HS3 &= BIT2;
-       // Grab Bit 3 of port 6 to check sensor 4
-       HS4 = P6IN;
-       HS4 &= BIT3;
-       // Grab Bit 4 of port 6 to check sensor 5
-       HS5 = P6IN;
-       HS5 &= BIT4;
-       // Grab Bit 5 of port 6 to check sensor 6
-       HS6 = P6IN;
-       HS6 &= BIT5;
        __disable_interrupt();
-       startConversion();
+       startConversion();   // Check Critical Sensors
        __delay_cycles(100);
        __enable_interrupt();
 
     }
 }
 
+void LED_Handler(){
+
+    if(DRY_STATE == 1){
+            TB2CCR0 = 32768;
+    } else if(HAZARD_STATE == 1){
+            TB2CCR0 = 16000;
+    }else if(CRITICAL_STATE == 1){
+            TB2CCR0 = 8000;
+        }
+}
 
 //--------------------------------------------------------------
-// Starts the MSP430 ADC Conversion and triggers the ADC ISR
+// Starts the MSP430 ADC Conversion and triggers the ADC ISR to READ the CRITICAL SENSORS
 //--------------------------------------------------------------
 void startConversion() {
     ADCCTL0 &= ~ADCENC;        // Clear ADCENC before changing channel
@@ -237,25 +219,22 @@ void switchChannel() {
 __interrupt void ADC_ISR(void){
     __disable_interrupt();
     ADC_Values[currentChannel - 4] = ADCMEM0; // Store result in array
-
-    // Example: Turn LED on if any channel reads between 11 and 3000
+    // Example: Turn on if any channel reads between 11 and 3000
     if (ADC_Values[currentChannel - 4] < 3000 && ADC_Values[currentChannel - 4] > 11) {
-        //P1OUT |= BIT0;
-        P2OUT |= LED1;  // Turn ON LED1
-         __delay_cycles(400);
+        CRITICAL_STATE = 1;
+        HAZARD_STATE = 0;
+        DRY_STATE = 0;
     } else {
-        //P1OUT &= ~BIT0;
-        P2OUT &= ~LED1;  // Turn OFF LED1
-         __delay_cycles(400); // Keep it OFF for the same duration
+        CRITICAL_STATE = 0;
     }
-
     switchChannel();  // Move to the next channel for the next conversion
     __enable_interrupt();
 
 }
 
 //--------------------------------------------------------------
-// TIMER 1 ISR
+// TIMER 1 (CRITICAL FLAG CHECK) ISR
+// - Makes sure the critical state has been detected for greaer than one second before asserting.
 //--------------------------------------------------------------
 #pragma vector = TIMER0_B0_VECTOR
 __interrupt void  ISR_TB0_CCR0(void){
@@ -269,10 +248,30 @@ __interrupt void  ISR_TB0_CCR0(void){
 }
 
 //--------------------------------------------------------------
-// TIMER 2 ISR
+// TIMER 2 (HAZARD CHECK) ISR
+// - Makes sure the hazard state has been detected for greaer than one second before asserting.
 //--------------------------------------------------------------
 #pragma vector = TIMER1_B0_VECTOR
 __interrupt void  ISR_TB1_CCR0(void){
+        //Collcets Data Relevant to Hazard System
+       // Grab Bit 0 of port 6 to check sensor 1
+       HS1 = P6IN;
+       HS1 &= BIT0;
+       // Grab Bit 1 of port 6 to check sensor 2
+       HS2 = P6IN;
+       HS2 &= BIT1;
+       // Grab Bit 2 of port 6 to check sensor 3
+       HS3 = P6IN;
+       HS3 &= BIT2;
+       // Grab Bit 3 of port 6 to check sensor 4
+       HS4 = P6IN;
+       HS4 &= BIT3;
+       // Grab Bit 4 of port 6 to check sensor 5
+       HS5 = P6IN;
+       HS5 &= BIT4;
+       // Grab Bit 5 of port 6 to check sensor 6
+       HS6 = P6IN;
+       HS6 &= BIT5;
 
         // Compare sensors with expected input values from comparator circuit
        if((HS1 == 0) | (HS2 == 0) | (HS3 == 0) | (HS4 == 0) | (HS5 == 0) | (HS6 == 0)){
@@ -297,7 +296,7 @@ __interrupt void  ISR_TB1_CCR0(void){
 }
 
 //--------------------------------------------------------------
-// TIMER 3 ISR
+// TIMER 3 (LED ALERT) ISR
 //--------------------------------------------------------------
 #pragma vector = TIMER2_B0_VECTOR
 __interrupt void  ISR_TB2_CCR0(void){

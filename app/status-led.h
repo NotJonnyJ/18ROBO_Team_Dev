@@ -18,8 +18,11 @@ This header file contains all the needed functionality for the offboard status L
 #define RED_LED      BIT7  // P4.7 red
 #define DRY_CCR0     32768 // dry state ccr0 point
 #define DRY_CCR1     16384 // dry state ccr1 point
-#define HAZARD_CCR0  16384 // hazard state ccr0 point
-#define HAZARD_CCR1  16380  // hazard state ccr1 point
+#define HAZARD_CCR0  32768 // hazard state ccr0 point
+#define HAZARD_CCR1  16384  // hazard state ccr1 point
+
+// variables
+int count = 0;
 
 
 inline void init_status_LED(void)
@@ -69,6 +72,8 @@ inline void update_status_led(int critical_state, int hazard_state, int dry_stat
 
 inline void status_led_CCR0(int hazard_state, int dry_state)
 {
+    if (count > 9)
+    {
     if (hazard_state == 1)
     {
         P2OUT |= WHITE_LED;
@@ -79,7 +84,8 @@ inline void status_led_CCR0(int hazard_state, int dry_state)
         P2OUT |= GREEN_LED;
         P2OUT &= ~WHITE_LED;
     }
-
+    count = 0;
+    }
     TB2CCTL0 &= ~CCIFG;
     return;
 }
@@ -89,6 +95,7 @@ inline void status_led_CCR1(void)
 
     P2OUT &= ~GREEN_LED;
     P2OUT &= ~WHITE_LED;
+    count++;
 
     TB2CCTL1 &= ~CCIFG;
     return;

@@ -5,6 +5,7 @@ import csv
 
 print("Beggining I2C Testbench - Capstone Prototype")
 
+
 I2C_BUS = 7
 bus = SMBus(I2C_BUS)
 slaveAddress = 0x22
@@ -20,11 +21,9 @@ def readNumber(i):
 		response = bus.read_byte(slaveAddress)
 		time.sleep(0.01)
 		print(i, response)
-		ts = time.time()
 		
 		now = datetime.now()
 		readable_time = now.strftime("%Y-%m-%d %H:%M:%S")
-		print(readable_time)
 
 		if(response == 0):
 			state = "DRY"
@@ -37,8 +36,7 @@ def readNumber(i):
 
 		print(state)
 
-
-		with open('testing1.csv', 'a', newline = '') as csvfile:
+		with open('spec_2_4_3.csv', 'a', newline = '') as csvfile:
 			writer = csv.writer(csvfile)
 			writer.writerow([i, readable_time, response, state])
 		return 1
@@ -47,7 +45,6 @@ def readNumber(i):
 		print("I2C Comm Error")
 		time.sleep(2)
 		readNumber()
-
 
 if __name__ == "__main__":
 	while True:

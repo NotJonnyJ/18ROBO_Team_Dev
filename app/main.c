@@ -38,15 +38,17 @@ int HAZARD_STATE = 0;
 int CRITICAL_STATE = 0;
 
 // Used in the verification timer for sensor detection
-int CRITICAL_FLAG = 0;
+int CRITICAL_FLAG[8];
+int CRITCAL_FLAGS_PREV[8];
 int HAZARD_FLAG = 0;
 
 int HAZARD_COUNT = 0;
 int CRITICAL_COUNT = 0;
+int CRITICAL_TIMER_RUNNING = 0;
 
 unsigned int ADC_Values[4];  // Array to store values for channels A4-A7
 unsigned int currentChannel = 4; // Start from channel A4
-
+int try_channel = 0;
 unsigned int ADC_Value;
 
 int HS1 = 0;
@@ -56,12 +58,10 @@ int HS4 = 0;
 int HS5 = 0;
 int HS6 = 0;
 
-unsigned int i;
+unsigned int i, j;
 
 char dataIn;
 
-void startConversion();
-void LED_Handler();
 void startConversion();
 
 
@@ -111,8 +111,16 @@ int main(void) {
     TB1CTL |= MC__UP;
     TB1CCR0 = 32768;
 
+     TB0CTL |= TBCLR;  // Clear Timer
+     TB0CTL |= TBSSEL__ACLK | MC__UP;  // Set ACLK, Up mode
+     TB0CCR0 = 32000; // 1-second delay
+    
+
     TB1CCTL0 &= ~CCIFG;
     TB1CCTL0 |= CCIE;
+
+    TB0CCTL0 &= ~CCIFG;
+    TB0CCTL0 |= CCIE;
 
     // Enable I2C Send and recieve interrupts
     UCB0IE |= UCTXIE;
@@ -129,23 +137,14 @@ int main(void) {
 
     // --MAIN LOOP -------------------------------------------------------------
     while(1){
-       __disable_interrupt();
+       //__disable_interrupt();
+
        startConversion();   // Check Critical Sensors
        update_status_led(CRITICAL_STATE, HAZARD_STATE, DRY_STATE);
-       __enable_interrupt();
+       //__enable_interrupt();
     }
 }
 
-void LED_Handler(){
-
-    if(DRY_STATE == 1){
-            TB2CCR0 = 32768;
-    } else if(HAZARD_STATE == 1){
-            TB2CCR0 = 16000;
-    }else if(CRITICAL_STATE == 1){
-            TB2CCR0 = 8000;
-        }
-}
 
 //--------------------------------------------------------------
 // Starts the MSP430 ADC Conversion and triggers the ADC ISR to READ the CRITICAL SENSORS
@@ -190,17 +189,40 @@ void switchChannel() {
 //--------------------------------------------------------------
 #pragma vector=ADC_VECTOR
 __interrupt void ADC_ISR(void){
+
     __disable_interrupt();
+    if(currentChannel >= 4 || currentChannel <= 7){
     ADC_Values[currentChannel - 4] = ADCMEM0; // Store result in array
     // Example: Turn on if any channel reads between 11 and 3000
-    if (ADC_Values[currentChannel - 4] < 3000 && ADC_Values[currentChannel - 4] > 11) {
-        CRITICAL_STATE = 1;
-        HAZARD_STATE = 0;
-        DRY_STATE = 0;
+     if (ADC_Values[currentChannel - 4] < 3000 && ADC_Values[currentChannel - 4] > 11) {
+        // Start critical timer only the first time water is detected
+        CRITICAL_FLAG[currentChannel] = 1;
+    } else {
+        CRITICAL_FLAG[currentChannel] = 0;
     }
-    switchChannel();  // Move to the next channel for the next conversion
+    }
+
+    switchChannel();  // Move to the next ADC sensor
     __enable_interrupt();
 
+
+}
+
+//--------------------------------------------------------------
+// TIMER 3 (Critical Sensor) ISR
+//-------------------------------------------------------------
+#pragma vector = TIMER0_B0_VECTOR
+__interrupt void ISR_TB0_CCR0(void){
+    for(i = 0; i < 8; i++){
+        if(CRITICAL_FLAG[i] == CRITCAL_FLAGS_PREV[i] && CRITICAL_FLAG[i] != 0)
+        {
+            CRITICAL_STATE = 1;
+        }
+    }
+    for (j = 0; j < 8; j++) {
+            CRITCAL_FLAGS_PREV[j] = CRITICAL_FLAG[j];
+    }
+    
 }
 
 
@@ -265,6 +287,8 @@ __interrupt void  ISR_TB2_CCR1(void){
     int k = 7;
     status_led_CCR1();
 }
+
+
 
 
 //--------------------------------------------------------------
